@@ -61,19 +61,21 @@ test("stored Tasks credentials are restored and refreshed without consent", asyn
   assert.equal(accessToken.mock.callCount(), 1);
 });
 
-test("missing Tasks scope or an unusable access token triggers consent and storage", async (context) => {
+test("missing Tasks scope or rejected refresh credentials trigger consent and storage", async (context) => {
   for (const scope of ["unrelated-scope", TASKS_SCOPE]) {
     const state = new GoogleAuthorizationState();
     state.client = new OAuth2Client();
     context.mock.method(state.client, "getAccessToken", async () => {
-      throw new Error("revoked credentials");
+      throw Object.assign(new Error("refresh rejected"), {
+        response: { data: { error: "invalid_grant" } },
+      });
     });
     const granted = { access_token: "new-token", scope: TASKS_SCOPE };
     const stored: Credentials[] = [];
     let consentCalls = 0;
     const service = new GoogleAuthorizationService(
       state,
-      { read: async () => ({ scope }) },
+      { read: async () => ({ scope, refresh_token: "revoked-refresh" }) },
       {
         write: async (token) => {
           stored.push(token);
@@ -94,6 +96,57 @@ test("missing Tasks scope or an unusable access token triggers consent and stora
     assert.equal(consentCalls, 1);
     assert.deepEqual(stored, [granted]);
     assert.deepEqual(state.client.credentials, granted);
+  }
+});
+
+test("refresh transport failures do not request consent or write tokens", async (context) => {
+  for (const message of ["ENOTFOUND oauth2.googleapis.com", "ECONNRESET"]) {
+    const state = new GoogleAuthorizationState();
+    state.client = new OAuth2Client();
+    context.mock.method(state.client, "getAccessToken", async () => {
+      throw new Error(message);
+    });
+    const service = new GoogleAuthorizationService(
+      state,
+      {
+        read: async () => ({ scope: TASKS_SCOPE, refresh_token: "test-refresh" }),
+      },
+      { write: async () => assert.fail("must not write after network failure") },
+      { authorize: async () => assert.fail("must not request consent while offline") },
+      { environment: ENVIRONMENT },
+    );
+
+    const result = await service.getAuthorizedClient();
+
+    assert.equal(result.hasValue, false);
+    if (!result.hasValue) {
+      assert.equal(result.error.type, "NETWORK");
+      assert.doesNotMatch(result.error.message, /ENOTFOUND|ECONNRESET/);
+    }
+  }
+});
+
+test("refresh server failures do not discard credentials or request consent", async (context) => {
+  const state = new GoogleAuthorizationState();
+  state.client = new OAuth2Client();
+  context.mock.method(state.client, "getAccessToken", async () => {
+    throw Object.assign(new Error("service unavailable"), {
+      response: { status: 503 },
+    });
+  });
+  const service = new GoogleAuthorizationService(
+    state,
+    { read: async () => ({ scope: TASKS_SCOPE, refresh_token: "test-refresh" }) },
+    { write: async () => assert.fail("must not write after server failure") },
+    { authorize: async () => assert.fail("must not request consent") },
+    { environment: ENVIRONMENT },
+  );
+
+  const result = await service.getAuthorizedClient();
+
+  assert.equal(result.hasValue, false);
+  if (!result.hasValue) {
+    assert.equal(result.error.type, "UNEXPECTED");
   }
 });
 

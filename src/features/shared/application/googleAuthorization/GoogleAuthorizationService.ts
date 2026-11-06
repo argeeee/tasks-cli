@@ -10,6 +10,7 @@ import type { GoogleAuthorizationState } from "../models/GoogleAuthorizationStat
 import type { GoogleAuthorizer } from "../models/GoogleAuthorizer";
 import type { GoogleTokenSource } from "../models/GoogleTokenSource";
 import type { GoogleTokenSink } from "../models/GoogleTokenSink";
+import { isCredentialRejection } from "./isCredentialRejection";
 
 const TASKS_SCOPE = "https://www.googleapis.com/auth/tasks";
 
@@ -85,12 +86,19 @@ export class GoogleAuthorizationService {
   }
 
   private async hasValidAccessToken(client: OAuth2Client): Promise<boolean> {
+    if (!client.credentials.access_token && !client.credentials.refresh_token) {
+      return false;
+    }
+
     try {
       const accessToken = await client.getAccessToken();
       return Boolean(accessToken.token);
-    } catch {
-      // Reauthorize when credentials are missing or cannot be refreshed.
-      return false;
+    } catch (error) {
+      if (isCredentialRejection(error)) {
+        return false;
+      }
+
+      throw error;
     }
   }
 
@@ -114,7 +122,9 @@ export class GoogleAuthorizationService {
 
     if (
       error instanceof Error &&
-      /network|fetch|ENOTFOUND|ECONNRESET/i.test(error.message)
+      /network|fetch|ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN/i.test(
+        error.message,
+      )
     ) {
       return {
         type: "NETWORK",
