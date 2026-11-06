@@ -1,13 +1,31 @@
 {
   "name": "tasks-cli",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Google Tasks command-line client",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx src/index.ts",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --minify --banner:js='import { createRequire } from \"node:module\"; const require = createRequire(import.meta.url);' --outdir=dist",
+    "build:run": "node dist/index.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "dependencies": {
+    "@argetim/arg-parser": "^1.0.0",
+    "google-auth-library": "^11.3.3",
+    "googleapis": "^182.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.16"
+  }
 }
