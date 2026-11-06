@@ -19,6 +19,19 @@ reference project's command grouping. With the built file, use
 `node dist/index.js tasks <action>`. During development use
 `npm run dev -- tasks <action>`.
 
+## Export
+
+```sh
+npm run export
+cd skills/tasks
+node tasks.js --help
+```
+
+Export builds the CLI and copies the bundle to `skills/tasks/tasks.js`, creating
+the directory when needed. If a root `.env` exists, it is also copied to
+`skills/tasks/.env`. Run from that directory to load the copied environment file.
+The generated bundle, environment file, and local tokens are ignored by Git.
+
 ## Google authorization
 
 Enable the Google Tasks API in your Google Cloud project, configure its OAuth
