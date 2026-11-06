@@ -1,0 +1,5 @@
+interface:
+  display_name: "Ask Me"
+  short_description: "Ask the user before making decisions"
+policy:
+  allow_implicit_invocation: false
