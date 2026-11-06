@@ -1,0 +1,8 @@
+node_modules/
+dist/
+
+.env
+skills/tasks/tasks.js
+
+.tmp/
+.agents/skills/implement/
