@@ -18,15 +18,18 @@ export class DefaultBrowserOpener implements BrowserOpener {
     }
 
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(command, args, { detached: true, stdio: "ignore" });
+      const child = spawn(command, args, { stdio: "ignore" });
 
       child.once("error", () => {
         reject(new Error("Google authorization could not open your browser."));
       });
 
-      child.once("spawn", () => {
-        child.unref();
-        resolve();
+      child.once("close", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error("Google authorization could not open your browser."));
+        }
       });
     });
   }
